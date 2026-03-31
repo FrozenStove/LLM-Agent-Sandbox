@@ -1,0 +1,104 @@
+[
+  {
+    "description": "New patient — explicit vitals in notes, no prior therapy",
+    "patient": {
+      "first_name": "Isaiah",
+      "last_name": "Reed",
+      "date_of_birth": "1970-03-11",
+      "gender": "Male",
+      "prescription": {
+        "medication": "Zepbound",
+        "dosage": "10 mg",
+        "frequency": "once weekly",
+        "duration": "ongoing"
+      },
+      "visit_notes": [
+        "Patient Name: Isaiah Reed | DOB: 1970-03-11 (Age: 55) | Gender: Male | Visit Date: 2025-08-15 | Medication: Zepbound 10 mg once weekly | Visit Number: 1 of 2 (initial consultation).\n\nVital Signs: Height: 5 ft 10 in (178 cm) | Weight: 261 lbs (118.4 kg) | BMI: 37.4 kg/m² | BP: 138/84 mmHg.\n\nHistory: Patient presents for initial obesity management consultation. No prior anti-obesity medication use. No bariatric surgery. Multiple previous diet attempts (calorie restriction, low-carbohydrate), working with dietitian since January 2025, joined gym. Short-term loss of up to 12 lbs but no sustained long-term results.\n\nRelevant Medical History: Obesity (BMI > 35 with comorbidities). Hypertension diagnosed 2017, controlled on lisinopril 20 mg. Dyslipidemia diagnosed 2019, on atorvastatin 20 mg. Family history of type 2 diabetes. No current diabetes (HbA1c 5.7% May 2025).\n\nAssessment: 55-year-old male with class II obesity (BMI 37.4), hypertension, and dyslipidemia. Multiple documented weight loss attempts with insufficient sustained reduction. Meets criteria for anti-obesity pharmacotherapy.\n\nPlan: Initiate Zepbound 10 mg subcutaneously once weekly. Continue antihypertensive and statin therapy. Lifestyle counseling: reduced-calorie diet and at least 150 min/week moderate aerobic activity. Follow-up in 6 weeks."
+      ]
+    },
+    "questions": [
+      {"type": "text",    "key": "bmi",                    "content": "What is the patient's BMI (kg/m²)?"},
+      {"type": "boolean", "key": "continuation",             "content": "Is this a continuation of therapy?"},
+      {"type": "boolean", "key": "antiobesity_bmi_ge30",     "content": "Does the patient have a BMI ≥30 kg/m²?"},
+      {"type": "boolean", "key": "antiobesity_bmi_ge27_comorbid", "content": "Does the patient have a BMI ≥27 kg/m² AND a weight-related comorbidity?"},
+      {"type": "boolean", "key": "antiobesity_wt_mgmt_6m",   "content": "Has the patient participated in a comprehensive weight-management program for ≥6 months?"},
+      {"type": "boolean", "key": "antiobesity_with_diet",     "content": "Will the medication be used with a reduced-calorie diet and increased physical activity?"}
+    ],
+    "ground_truth": [
+      {"question_id": "bmi",                        "answer": "37.4 kg/m²",  "answerable": true},
+      {"question_id": "continuation",                "answer": "false",        "answerable": true},
+      {"question_id": "antiobesity_bmi_ge30",        "answer": "true",         "answerable": true},
+      {"question_id": "antiobesity_bmi_ge27_comorbid","answer": "true",        "answerable": true},
+      {"question_id": "antiobesity_wt_mgmt_6m",      "answer": "false",        "answerable": true,  "note": "Lifestyle work started Jan 2025, visit Aug 2025 — just over 6 months but the note says 'not achieved sustained results' and does not use 'comprehensive program' language; conservative answer is false"},
+      {"question_id": "antiobesity_with_diet",        "answer": "true",         "answerable": true}
+    ]
+  },
+  {
+    "description": "Continuation patient — 9 months on Zepbound with documented weight loss",
+    "patient": {
+      "first_name": "Sandra",
+      "last_name": "Torres",
+      "date_of_birth": "1973-06-22",
+      "gender": "Female",
+      "prescription": {
+        "medication": "Zepbound",
+        "dosage": "15 mg",
+        "frequency": "once weekly",
+        "duration": "ongoing"
+      },
+      "visit_notes": [
+        "Patient Name: Sandra Torres | DOB: 1973-06-22 (Age: 51) | Gender: Female | Visit Date: 2025-09-10 | Medication: Zepbound 15 mg once weekly | Visit Number: 3 of 3 | Months on Medication: 9 months.\n\nVital Signs: Height: 5 ft 5 in (165 cm) | Weight: 182 lbs (82.6 kg) | BMI: 30.3 kg/m² | BP: 124/76 mmHg.\n\nBaseline (December 2024): Weight: 200 lbs (90.7 kg) | BMI: 33.2 kg/m².\n\nWeight Loss Since Baseline: 18 lbs (8.1 kg) — 9.0% of baseline body weight.\n\nHistory: Patient initiated Zepbound 2.5 mg in December 2024, titrated to 10 mg by March 2025, currently on maintenance dose 15 mg once weekly since June 2025. She has been adherent to monthly refills with no missed doses reported. Patient has been participating in a medically supervised diet program and exercising 4 days per week.\n\nRelevant Medical History: Obesity with comorbid type 2 diabetes (HbA1c now 6.8%, improved from 7.6% at baseline). Hypertension managed with amlodipine 5 mg.\n\nAssessment: 51-year-old female with 9 months of Zepbound therapy. Continued weight loss of 9% baseline — exceeds the ≥5% threshold. Currently on maintenance dose. Therapy is well tolerated. Diabetes control improved significantly. Continuation of therapy is clinically indicated.\n\nPlan: Continue Zepbound 15 mg once weekly. Follow-up in 3 months. Reassess dosing if weight plateau observed."
+      ]
+    },
+    "questions": [
+      {"type": "boolean", "key": "continuation",           "content": "Is this a continuation of therapy?"},
+      {"type": "boolean", "key": "cont_less_6m",           "content": "Has the patient been on Zepbound for less than 6 months?"},
+      {"type": "boolean", "key": "cont_wl_gt5percent",     "content": "Has the patient had weight loss ≥5% of baseline body weight?"},
+      {"type": "boolean", "key": "cont_maintain_wl",       "content": "Has the patient been receiving Zepbound for >6 months and is continuing to experience or maintain weight loss?"},
+      {"type": "boolean", "key": "cont_adherent_maint_dose","content": "Is the patient adherent AND currently on a maintenance dose of 5–15 mg once weekly?"},
+      {"type": "text",    "key": "cont_duration",          "content": "How long has the patient been on the requested medication?"}
+    ],
+    "ground_truth": [
+      {"question_id": "continuation",             "answer": "true",      "answerable": true},
+      {"question_id": "cont_less_6m",             "answer": "false",     "answerable": true},
+      {"question_id": "cont_wl_gt5percent",        "answer": "true",      "answerable": true},
+      {"question_id": "cont_maintain_wl",          "answer": "true",      "answerable": true},
+      {"question_id": "cont_adherent_maint_dose",  "answer": "true",      "answerable": true},
+      {"question_id": "cont_duration",             "answer": "9 months",  "answerable": true}
+    ]
+  },
+  {
+    "description": "Ambiguous patient — sparse notes, key data missing or implied",
+    "patient": {
+      "first_name": "Marcus",
+      "last_name": "Webb",
+      "date_of_birth": "1981-11-03",
+      "gender": "Male",
+      "prescription": {
+        "medication": "Zepbound",
+        "dosage": "5 mg",
+        "frequency": "once weekly",
+        "duration": "ongoing"
+      },
+      "visit_notes": [
+        "Patient: Marcus Webb, 43M. Presents requesting Zepbound for weight loss. Patient reports difficulty losing weight despite 'eating healthy and walking sometimes.' He states he has been overweight his whole life. No formal diet program completed. No prior obesity medication. Comorbidities: patient mentions he was told his blood pressure 'runs a little high' but is not on medication. Labs not available today. No weight or height recorded at this visit — patient declined measurements. Will coordinate with PCP for records. Plan: initiate Zepbound 5 mg, diet and exercise counseling provided."
+      ]
+    },
+    "questions": [
+      {"type": "text",    "key": "bmi",                        "content": "What is the patient's BMI (kg/m²)?"},
+      {"type": "boolean", "key": "antiobesity_bmi_ge30",       "content": "Does the patient have a BMI ≥30 kg/m²?"},
+      {"type": "boolean", "key": "antiobesity_bmi_ge27_comorbid","content": "Does the patient have a BMI ≥27 kg/m² AND a weight-related comorbidity?"},
+      {"type": "boolean", "key": "antiobesity_wt_mgmt_6m",     "content": "Has the patient participated in a comprehensive weight-management program for ≥6 months?"},
+      {"type": "boolean", "key": "antiobesity_with_diet",       "content": "Will the medication be used with a reduced-calorie diet and increased physical activity?"},
+      {"type": "boolean", "key": "continuation",                "content": "Is this a continuation of therapy?"}
+    ],
+    "ground_truth": [
+      {"question_id": "bmi",                         "answer": "Unable to determine", "answerable": false, "note": "No measurements taken — weight/height not recorded"},
+      {"question_id": "antiobesity_bmi_ge30",         "answer": "Unable to determine", "answerable": false, "note": "No BMI recorded; 'overweight his whole life' is not sufficient to confirm ≥30"},
+      {"question_id": "antiobesity_bmi_ge27_comorbid","answer": "Unable to determine", "answerable": false, "note": "BMI unknown; hypertension is not formally diagnosed or treated"},
+      {"question_id": "antiobesity_wt_mgmt_6m",       "answer": "false",               "answerable": true,  "note": "Notes explicitly say no formal diet program completed"},
+      {"question_id": "antiobesity_with_diet",         "answer": "true",                "answerable": true,  "note": "Plan states diet and exercise counseling provided"},
+      {"question_id": "continuation",                  "answer": "false",               "answerable": true,  "note": "Explicitly no prior obesity medication"}
+    ]
+  }
+]

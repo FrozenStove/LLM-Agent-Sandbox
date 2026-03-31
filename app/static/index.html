@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prior Authorization Assistant</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    textarea { font-family: monospace; font-size: 0.78rem; }
+    .confidence-high   { background: #d1fae5; color: #065f46; }
+    .confidence-medium { background: #fef9c3; color: #713f12; }
+    .confidence-low    { background: #fee2e2; color: #991b1b; }
+    .skeleton { animation: pulse 1.5s cubic-bezier(0.4,0,0.6,1) infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+    .answer-card { transition: opacity 0.25s ease; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+<div class="max-w-4xl mx-auto p-6">
+
+  <header class="mb-6">
+    <h1 class="text-2xl md:text-3xl font-bold text-amber-800 bg-amber-100 border-2 border-amber-400 rounded-xl px-5 py-4 mb-4 text-center shadow-sm">THIS FRONT END IS USED ONLY FOR TESTING THE BACK END, AND IS NOT INTENDED FOR PRODUCTION USE</h1>
+    <h1 class="text-2xl font-bold text-gray-900">Prior Authorization Assistant</h1>
+    <p class="text-gray-500 text-sm mt-1">Load a patient, choose a question set, and stream AI-powered answers.</p>
+  </header>
+
+  <!-- Patient loader -->
+  <div class="bg-white border border-gray-200 rounded-xl p-4 mb-4 shadow-sm">
+    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Load Patient Data</p>
+    <div class="flex flex-wrap gap-2 items-center">
+      <button onclick="loadRandom()"
+        class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+        Random Patient
+      </button>
+      <select id="patientSelect"
+        class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 flex-1 min-w-48">
+        <option value="">— select a patient —</option>
+      </select>
+      <button onclick="loadSelected()"
+        class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+        Load Selected
+      </button>
+    </div>
+    <p id="patientStatus" class="text-xs text-gray-400 mt-2 hidden"></p>
+  </div>
+
+  <!-- Input grid -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+    <div>
+      <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Patient Data (JSON)</label>
+      <textarea id="patientDataInput" rows="16"
+        class="w-full border border-gray-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
+        placeholder='{"first_name": "Jane", ...}'></textarea>
+    </div>
+    <div class="flex flex-col gap-4">
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Question Set</label>
+        <select id="questionSetSelect"
+          class="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <option value="zepbound">Zepbound (Anti-obesity)</option>
+          <option value="custom">Custom (paste below)</option>
+        </select>
+      </div>
+      <div id="customQsPanel" class="hidden">
+        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Custom Questions (JSON array)</label>
+        <textarea id="customQsInput" rows="6"
+          class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          placeholder='[{"type":"text","key":"bmi","content":"What is the BMI?"}]'></textarea>
+      </div>
+      <div class="flex flex-col gap-2 mt-auto">
+        <button id="generateBtn" onclick="generate()"
+          class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 px-5 rounded-xl transition-colors">
+          Generate Answers
+        </button>
+        <button onclick="clearAnswers()"
+          class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium py-2 px-5 rounded-xl transition-colors">
+          Clear
+        </button>
+      </div>
+      <p id="statusBar" class="text-sm text-gray-500 italic hidden"></p>
+      <p id="errorBox" class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3 hidden"></p>
+    </div>
+  </div>
+
+  <!-- Answers -->
+  <div id="answersContainer" class="space-y-3"></div>
+
+</div>
+
+<script>
+const ZEPBOUND_QUESTIONS = [
+  {type:"text",   key:"age",    content:"What is the patient's age in years?"},
+  {type:"text",   key:"weight", content:"What is the patient's weight (including unit)?"},
+  {type:"text",   key:"height", content:"What is the patient's height (including unit)?"},
+  {type:"text",   key:"bmi",    content:"What is the patient's BMI (kg/m\u00b2)?"},
+  {type:"boolean",key:"expedited_review",       content:"Expedited/Urgent Review Requested"},
+  {type:"boolean",key:"other_weight_loss_meds", content:"Will the medication be used with any other weight loss medications?"},
+  {type:"text",   key:"diagnosis",   content:"What is the diagnosis for the medication being requested?"},
+  {type:"boolean",key:"continuation",content:"Is this a continuation of therapy?"},
+  {type:"boolean",key:"cont_drug_prev_approved",content:"Has the requested drug been approved for coverage previously by a prior plan?",visible_if:"{continuation} = true"},
+  {type:"text",   key:"cont_duration",      content:"How long has the patient been on the requested medication?",visible_if:"{continuation} = true"},
+  {type:"boolean",key:"cont_less_6m",       content:"Has the patient been on Zepbound for less than 6 months?",visible_if:"{continuation} = true"},
+  {type:"boolean",key:"cont_wl_gt5percent", content:"Has the patient had weight loss \u22655% of baseline?",visible_if:"{continuation} = true"},
+  {type:"boolean",key:"antiobesity_bmi_ge30",         content:"Does the patient have a BMI \u226530 kg/m\u00b2?"},
+  {type:"boolean",key:"antiobesity_bmi_ge27_comorbid",content:"Does the patient have a BMI \u226527 kg/m\u00b2 AND a weight-related comorbidity?"},
+  {type:"boolean",key:"antiobesity_wt_mgmt_6m",       content:"Has the patient been in a comprehensive weight-management program for \u22656 months?"},
+  {type:"boolean",key:"antiobesity_with_diet",         content:"Will the medication be used with a reduced-calorie diet and increased physical activity?"},
+];
+
+// ── Patient loader ────────────────────────────────────────────────────────────
+async function populatePatientList() {
+  try {
+    const res = await fetch('/patients');
+    if (!res.ok) return;
+    const list = await res.json();
+    const sel = document.getElementById('patientSelect');
+    list.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.index;
+      opt.textContent = `${p.name} \u2014 ${p.medication}`;
+      sel.appendChild(opt);
+    });
+  } catch (_) { /* sample data unavailable */ }
+}
+
+async function loadRandom() {
+  setPatientStatus('Loading random patient\u2026');
+  try {
+    const res = await fetch('/patients/random');
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+    const patient = await res.json();
+    document.getElementById('patientDataInput').value = JSON.stringify(patient, null, 2);
+    setPatientStatus(`Loaded: ${patient.first_name} ${patient.last_name} \u2014 ${patient.prescription.medication}`);
+  } catch (e) {
+    setPatientStatus(`Error: ${e.message}`);
+  }
+}
+
+async function loadSelected() {
+  const sel = document.getElementById('patientSelect');
+  const idx = sel.value;
+  if (!idx) { setPatientStatus('Select a patient from the dropdown first.'); return; }
+  setPatientStatus('Loading patient\u2026');
+  try {
+    const res = await fetch(`/patients/${idx}`);
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+    const patient = await res.json();
+    document.getElementById('patientDataInput').value = JSON.stringify(patient, null, 2);
+    setPatientStatus(`Loaded: ${patient.first_name} ${patient.last_name} \u2014 ${patient.prescription.medication}`);
+  } catch (e) {
+    setPatientStatus(`Error: ${e.message}`);
+  }
+}
+
+function setPatientStatus(msg) {
+  const el = document.getElementById('patientStatus');
+  el.textContent = msg;
+  el.classList.toggle('hidden', !msg);
+}
+
+// ── Question set selector ─────────────────────────────────────────────────────
+document.getElementById('questionSetSelect').addEventListener('change', function() {
+  document.getElementById('customQsPanel').classList.toggle('hidden', this.value !== 'custom');
+});
+
+function getQuestions() {
+  if (document.getElementById('questionSetSelect').value === 'zepbound') return ZEPBOUND_QUESTIONS;
+  return JSON.parse(document.getElementById('customQsInput').value.trim());
+}
+
+// ── Answer rendering ──────────────────────────────────────────────────────────
+function confidenceBadge(confidence) {
+  if (confidence == null) return '';
+  const pct = Math.round(confidence * 100);
+  const cls = confidence >= 0.7 ? 'confidence-high' : confidence >= 0.4 ? 'confidence-medium' : 'confidence-low';
+  return `<span class="text-xs font-bold px-2 py-0.5 rounded-full ${cls}">${pct}%</span>`;
+}
+
+function renderAnswerCard(answer, question) {
+  const label = question ? question.content : answer.question_id;
+  const existing = document.getElementById(`card-${answer.question_id}`);
+  const card = existing || document.createElement('div');
+  card.id = `card-${answer.question_id}`;
+  card.className = 'answer-card bg-white border border-gray-200 rounded-xl p-4 shadow-sm';
+  card.innerHTML = `
+    <div class="flex items-start justify-between gap-3 mb-2">
+      <span class="text-sm font-semibold text-gray-800 flex-1">${label}</span>
+      <span class="flex-shrink-0">${confidenceBadge(answer.confidence)}</span>
+    </div>
+    <input type="text" value="${esc(answer.answer)}"
+      class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 mb-2"
+      aria-label="Answer for: ${esc(label)}" />
+    ${answer.explanation ? `<p class="text-xs text-gray-400 italic">${esc(answer.explanation)}</p>` : ''}
+  `;
+  if (!existing) document.getElementById('answersContainer').appendChild(card);
+}
+
+function addSkeleton(key, label) {
+  const card = document.createElement('div');
+  card.id = `card-${key}`;
+  card.className = 'answer-card bg-white border border-gray-200 rounded-xl p-4 shadow-sm';
+  card.innerHTML = `
+    <p class="text-sm font-semibold text-gray-800 mb-3">${label}</p>
+    <div class="skeleton h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+    <div class="skeleton h-3 bg-gray-100 rounded w-full"></div>
+  `;
+  document.getElementById('answersContainer').appendChild(card);
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
+function setStatus(msg) {
+  const el = document.getElementById('statusBar');
+  el.textContent = msg;
+  el.classList.toggle('hidden', !msg);
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorBox');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function clearAnswers() {
+  document.getElementById('answersContainer').innerHTML = '';
+  document.getElementById('errorBox').classList.add('hidden');
+  setStatus('');
+  setPatientStatus('');
+}
+
+// ── Main generate flow ────────────────────────────────────────────────────────
+async function generate() {
+  clearAnswers();
+
+  let patient, questions;
+  try {
+    patient = JSON.parse(document.getElementById('patientDataInput').value);
+    questions = getQuestions();
+  } catch (e) {
+    showError(`JSON parse error: ${e.message}`);
+    return;
+  }
+
+  if (!patient || Object.keys(patient).length === 0) {
+    showError('Patient data is empty. Load a patient first.');
+    return;
+  }
+
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+
+  const questionMap = Object.fromEntries(questions.map(q => [q.key, q]));
+  questions.filter(q => !q.visible_if).forEach(q => addSkeleton(q.key, q.content));
+  setStatus('Generating answers\u2026');
+
+  const payload = {
+    patient,
+    question_set: { name: 'Prior Authorization Questions', questions }
+  };
+
+  try {
+    const res = await fetch('/answers/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) throw new Error(`Server error ${res.status}: ${await res.text()}`);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '', count = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nl;
+      while ((nl = buffer.indexOf('\n\n')) !== -1) {
+        const chunk = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 2);
+        if (chunk.startsWith('data: ')) {
+          try {
+            const answer = JSON.parse(chunk.slice(6));
+            renderAnswerCard(answer, questionMap[answer.question_id]);
+            count++;
+            setStatus(`${count} answer${count !== 1 ? 's' : ''} received\u2026`);
+          } catch (_) {}
+        }
+      }
+    }
+    setStatus(`Done \u2014 ${count} answer${count !== 1 ? 's' : ''} generated.`);
+  } catch (e) {
+    showError(e.message);
+    setStatus('');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+populatePatientList();
+</script>
+</body>
+</html>
